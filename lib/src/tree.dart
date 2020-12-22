@@ -111,36 +111,51 @@ class RouteTree {
     }
   }
 
+  /// Измененя в библиотеке: чтобы нормально парсился url с параметрами,
+  /// разбиваю отдельно ноду и параметры.
+  /// todo: параметры добавляются во все ноды, но на результат не влияет
+  /// todo: возможна проблема решится в fluro 2.0  и можно отказаться от этого решения
   AppRouteMatch matchRoute(String path) {
+    List<String> componentsUrl = path.split('?');
+
+    Map<String, List<String>> queryMap;
+    if (componentsUrl.length > 1) {
+      final subComponentsUrl = componentsUrl.skip(1).toList();
+      for (String checkComponent in subComponentsUrl) {
+        queryMap = parseQueryString(checkComponent);
+      }
+    }
+    return matchNodeRoute(componentsUrl.first, queryMap: queryMap);
+  }
+
+  AppRouteMatch matchNodeRoute(
+      String path, {
+        Map<String, List<String>> queryMap,
+      }) {
     String usePath = path;
     if (usePath.startsWith("/")) {
       usePath = path.substring(1);
     }
+
     List<String> components = usePath.split("/");
     if (path == Navigator.defaultRouteName) {
       components = ["/"];
     }
 
     Map<RouteTreeNode, RouteTreeNodeMatch> nodeMatches =
-        <RouteTreeNode, RouteTreeNodeMatch>{};
+    <RouteTreeNode, RouteTreeNodeMatch>{};
     List<RouteTreeNode> nodesToCheck = _nodes;
     for (String checkComponent in components) {
       Map<RouteTreeNode, RouteTreeNodeMatch> currentMatches =
-          <RouteTreeNode, RouteTreeNodeMatch>{};
+      <RouteTreeNode, RouteTreeNodeMatch>{};
       List<RouteTreeNode> nextNodes = <RouteTreeNode>[];
       String pathPart = checkComponent;
-      Map<String, List<String>> queryMap;
-      if (checkComponent.contains("?")) {
-        var splitParam = checkComponent.split("?");
-        pathPart = splitParam[0];
-        queryMap = parseQueryString(splitParam[1]);
-      }
       for (RouteTreeNode node in nodesToCheck) {
         bool isMatch = (node.part == pathPart || node.isParameter());
         if (isMatch) {
           RouteTreeNodeMatch parentMatch = nodeMatches[node.parent];
           RouteTreeNodeMatch match =
-              RouteTreeNodeMatch.fromMatch(parentMatch, node);
+          RouteTreeNodeMatch.fromMatch(parentMatch, node);
           if (node.isParameter()) {
             String paramKey = node.part.substring(1);
             match.parameters[paramKey] = [pathPart];
